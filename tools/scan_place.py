@@ -134,10 +134,15 @@ def read_chunks(data):
 
 
 def scan_bytes(data, path, quiet=False):
+    # In quiet mode the caller is the self-test, where a detection is the expected and
+    # desired outcome. Emitting ##vso[task.logissue type=error] there paints an Azure
+    # Pipelines step red while it passes, which teaches people that red lines in this
+    # pipeline mean nothing - the opposite of what the gate is for.
+    err = "" if quiet else "##vso[task.logissue type=error]"
     try:
         chunks = list(read_chunks(data))
     except ValueError as exc:
-        print("##vso[task.logissue type=error]%s: %s" % (path, exc))
+        print("%s%s: %s" % (err, path, exc))
         return False
 
     blob = b"".join(payload for _, payload in chunks)
@@ -154,8 +159,8 @@ def scan_bytes(data, path, quiet=False):
     for label, pattern in FATAL:
         for hit in pattern.findall(blob):
             shown = hit[:14].decode("ascii", "replace")
-            print("##vso[task.logissue type=error]%s: %s found (%s...). Revoke it now - "
-                  "this repo is mirrored publicly." % (path, label, shown))
+            print("%s%s: %s found (%s...). Revoke it now - this repo is mirrored "
+                  "publicly." % (err, path, label, shown))
             clean = False
     if not quiet:
         for label, pattern in WARN:
