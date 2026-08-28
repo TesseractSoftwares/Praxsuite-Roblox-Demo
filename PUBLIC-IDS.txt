@@ -1,0 +1,37 @@
+# Workspace and endpoint ids that are knowingly published by this repo.
+#
+# tools/scan_place.py fails the build on any id in the place file that is not listed here.
+# The point is that a Praxsuite endpoint route takes NO credential unless HMAC signing is
+# enabled on it, so an id in a public repo is a callable URL, not just a label. Listing one
+# here is a statement that somebody checked it and accepted it.
+#
+# ─── STATUS 2026-08-28: the eight Buscaminas endpoints are NOT signed ────────────────
+# Verified through the platform: every one reports signatureAlgorithm 0 and
+# hasSignatureSecret false. They are listed below because they are ALREADY public - the
+# repo was mirrored before this check existed - and blocking the pipeline now un-publishes
+# nothing. This is a record of exposure, not an approval.
+#
+# To close it: enable HMAC on each endpoint in the portal, teach the place to sign its
+# requests (Roblox Secrets Store, not a literal in the source), and then these lines become
+# genuinely safe. Until that lands, treat every endpoint below as world-callable.
+#
+# Note also that workspace ffd80539 is NOT a throwaway: it also hosts the CRM demo. Those
+# endpoint ids are not in this repo, and they are not guessable, but the workspace address
+# is now public.
+
+# --- workspace -----------------------------------------------------------------------
+ffd80539-a1e2-4a9e-8b33-f716bf690281   # the demo workspace itself
+
+# --- Buscaminas endpoints (Sync, unsigned - see status above) --------------------------
+013d8d4e-fff9-4c4b-bb54-fb479314ea2f   # Registro       - creates an end user. Mass-signup risk.
+f42fbe32-5928-4432-a070-c8029415e3e9   # Login          - credential-stuffing target.
+3d6a3601-511e-4a82-8c7c-eacbe8ea68ba   # Nueva Partida  - burns workspace quota per call.
+c145d99d-a9d7-4f97-842c-7e4816d46b82   # Jugar          - writes moves; server-side validated.
+5e4cecb3-00c3-458c-8803-2a69742bfc8e   # Leaderboard    - read-only, intended to be open.
+402f03bb-d32e-4620-bffb-abfbd8437c5f   # Canjear Codigo - redeem codes are brute-forceable.
+1a8e5f59-df6b-4443-93e3-18c97b2945bb   # Mis Cosmeticos - reads another player's inventory by id.
+014b3d6e-e334-4051-864a-ccbb1a5561d1   # Equipar        - writes to another player's avatar by id.
+
+# --- documentation placeholders, not real ids -----------------------------------------
+a1b2c3d4-e5f6-7890-abcd-ef1234567890   # example in the SDK's Schema.Register docstring
+f9e8d7c6-b5a4-3210-fedc-ba0987654321   # example in the SDK's Schema.Register docstring

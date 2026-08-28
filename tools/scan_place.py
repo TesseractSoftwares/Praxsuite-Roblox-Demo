@@ -20,6 +20,7 @@ work. It builds a place file carrying a real-shaped key and asserts this scanner
 it, so a regression in the decoder cannot silently turn the gate into a no-op.
 """
 
+import os
 import re
 import sys
 
@@ -133,6 +134,58 @@ def read_chunks(data):
     raise ValueError("ran off the end of the file without finding the END chunk")
 
 
+# Praxsuite ids are lowercase UUIDs. Roblox writes its OWN GUIDs uppercase and inside
+# braces ({EF2B1D38-...}), so lowercase is a reliable signal that the id belongs to a
+# workspace rather than to the engine.
+UUID = re.compile(rb"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
+
+ALLOWLIST_FILE = "PUBLIC-IDS.txt"
+
+# Mutable so main() can point it at the repo root regardless of the cwd the build uses.
+ALLOW_ROOT = ["."]
+
+
+def load_allowlist(root="."):
+    """Ids a human has consciously accepted as public. Missing file = nothing allowed."""
+    allowed = set()
+    try:
+        with open(os.path.join(root, ALLOWLIST_FILE), encoding="utf-8") as fh:
+            for line in fh:
+                line = line.split("#", 1)[0].strip().lower()
+                if line:
+                    allowed.add(line)
+    except IOError:
+        pass
+    return allowed
+
+
+def check_identifiers(blob, path, allowed):
+    """Fail on any workspace or endpoint id that nobody signed off on.
+
+    A workspaceId and an endpoint id are not secrets, but together with the gateway host
+    they are the full address of a live workspace - and a Praxsuite endpoint route takes
+    no credential unless HMAC signing is turned on for it. So publishing an id that has
+    not been reviewed hands out a callable URL. Requiring each one to be listed by hand
+    means the NEXT demo cannot ship its address book by accident, which is exactly how
+    this one did.
+    """
+    found = set(m.decode("ascii") for m in UUID.findall(blob))
+    new = sorted(u for u in found if u not in allowed)
+    if not new:
+        if found:
+            print("%s: %d workspace/endpoint id(s), all listed in %s."
+                  % (path, len(found), ALLOWLIST_FILE))
+        return True
+    print("##vso[task.logissue type=error]%s: %d identifier(s) not listed in %s:"
+          % (path, len(new), ALLOWLIST_FILE))
+    for u in new:
+        print("##vso[task.logissue type=error]    %s" % u)
+    print("##vso[task.logissue type=error]Each of these becomes a public, callable address "
+          "once this repo is mirrored. Confirm the endpoint requires an HMAC signature, then "
+          "add the id to %s with a note saying why it is safe." % ALLOWLIST_FILE)
+    return False
+
+
 def scan_bytes(data, path, quiet=False):
     # In quiet mode the caller is the self-test, where a detection is the expected and
     # desired outcome. Emitting ##vso[task.logissue type=error] there paints an Azure
@@ -162,6 +215,9 @@ def scan_bytes(data, path, quiet=False):
             print("%s%s: %s found (%s...). Revoke it now - this repo is mirrored "
                   "publicly." % (err, path, label, shown))
             clean = False
+    if not quiet and not check_identifiers(blob, path, load_allowlist(ALLOW_ROOT[0])):
+        clean = False
+
     if not quiet:
         for label, pattern in WARN:
             found = pattern.findall(blob)
