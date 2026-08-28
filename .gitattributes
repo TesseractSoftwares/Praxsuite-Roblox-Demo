@@ -1,0 +1,12 @@
+# A Roblox place is a binary file. Without this a Windows clone would happily "normalise"
+# its line endings and hand Studio a corrupt place - and the damage only shows up when
+# somebody tries to open it.
+*.rbxl  binary
+*.rbxm  binary
+*.rbxlx text eol=lf
+*.rbxmx text eol=lf
+
+# Everything else is read by tools that expect LF.
+* text=auto eol=lf
+*.png binary
+*.zip binary

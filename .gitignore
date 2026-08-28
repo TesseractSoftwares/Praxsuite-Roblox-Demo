@@ -1,0 +1,16 @@
+# Roblox Studio / Rojo
+sourcemap.json
+*.rbxl.lock
+*.rbxlx.lock
+/out/
+/build/
+
+# Editor and OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
