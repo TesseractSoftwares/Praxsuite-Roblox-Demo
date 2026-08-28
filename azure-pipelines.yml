@@ -1,0 +1,145 @@
+# Praxsuite Roblox demo - scan, then mirror to the public GitHub repo.
+#
+# PR and development: scan only.
+# master:             scan, then mirror the source to github.com/TesseractSoftwares/Praxsuite-Roblox-Demo.
+#
+# This repo is a demo place, not a library: there is nothing to compile and nothing to
+# package, so unlike the SDK pipelines there is no release stage and no artifact. The
+# mirror IS the deliverable - GitHub is our public layer and this is how the demo reaches
+# a reader.
+#
+# The gate that matters is the secret scan. A .rbxl is a binary file whose strings live in
+# LZ4-compressed chunks, so `grep sk_live_ RobloxSDKDemo.rbxl` would pass a place with a
+# workspace's secret key sitting in plain sight inside a Script. tools/scan_place.py
+# decompresses the chunks and reads what Studio would show, and proves on every run that it
+# still detects a planted key before it is trusted to say a file is clean.
+
+# There is deliberately no paths: exclude here. The mirror step in this pipeline IS how the
+# public repo gets updated, so excluding README.md would mean a documentation fix reaches
+# nobody - it would sit on ADO forever, looking committed. A path filter is also a path
+# PREFIX and not a glob, and a malformed entry appears to stop the whole block being
+# evaluated, which has silently disabled triggers on sibling repos.
+trigger:
+  branches:
+    include:
+      - master
+      - development
+
+pr:
+  branches:
+    include:
+      - master
+      - development
+
+pool:
+  name: tesseract-buildpool
+
+variables:
+  isMaster: $[eq(variables['Build.SourceBranch'], 'refs/heads/master')]
+  githubRepo: 'TesseractSoftwares/Praxsuite-Roblox-Demo'
+
+stages:
+
+# ─────────────────────────────────────────────────────────────────────────────
+- stage: Validate
+  displayName: 'Scan for secrets'
+  jobs:
+    - job: Scan
+      steps:
+        # The scanner is trusted to decide whether a binary place is safe to publish, so it
+        # is asked to prove it still works first. It builds a place carrying a real-shaped
+        # sk_live_ key, in both a stored and an LZ4 chunk, and fails if it does not reject
+        # them - and builds a clean one and fails if it does. A gate that has never rejected
+        # anything is not known to be a gate.
+        - script: |
+            set -e
+            python3 tools/scan_place.py --self-test
+          displayName: 'Prove the secret scanner still bites'
+
+        # Every place and model in the repo, not just the one that exists today - a demo
+        # picks up files, and a scan hard-coded to one filename silently stops covering the
+        # repo the moment somebody adds a second.
+        - script: |
+            set -e
+            FILES=$(find . -path ./.git -prune -o \( -name '*.rbxl' -o -name '*.rbxm' \) -print)
+            if [ -z "$FILES" ]; then
+              echo "##vso[task.logissue type=error]No .rbxl or .rbxm in the repo. This pipeline exists to publish a Roblox place - if the place is gone, say so deliberately rather than mirroring an empty repo."
+              exit 1
+            fi
+            echo "Scanning:"; echo "$FILES"
+            python3 tools/scan_place.py $FILES
+          displayName: 'Scan the place files'
+
+        # The scan above reads what is inside the binary. Everything else in the repo is
+        # just as public and is read as plain text.
+        - script: |
+            set -e
+            if grep -rEn 'sk_live_[A-Za-z0-9]{16,}|sk_test_[A-Za-z0-9]{16,}' \
+                 --binary-files=without-match --exclude-dir=.git . ; then
+              echo "##vso[task.logissue type=error]A Praxsuite secret key is present in a text file. Revoke it now - this repo is mirrored publicly."
+              exit 1
+            fi
+            echo "No secret keys in the text files."
+          displayName: 'Scan the text files'
+
+# ─────────────────────────────────────────────────────────────────────────────
+- stage: Publish
+  displayName: 'Mirror to GitHub'
+  dependsOn: Validate
+  condition: and(succeeded(), eq(variables.isMaster, true))
+  jobs:
+    - job: Mirror
+      steps:
+        # Full history: the mirror push needs real commits, not a shallow clone.
+        - checkout: self
+          fetchDepth: 0
+
+        - task: AzureKeyVault@2
+          displayName: 'Read GitHub token'
+          inputs:
+            azureSubscription: 'sc-acr-push-core-prod'
+            KeyVaultName: 'prax-cicd-kv'
+            SecretsFilter: 'GITHUB-SDK-MIRROR-TOKEN'
+            RunAsPreJob: false
+
+        - script: |
+            set -e
+            git config user.email "ci@tesseractsoftwares.com"
+            git config user.name  "Tesseract CI"
+
+            git remote remove github 2>/dev/null || true
+            git remote add github "https://x-access-token:$(GITHUB-SDK-MIRROR-TOKEN)@github.com/$(githubRepo).git"
+
+            # Read the mirror's head BEFORE fetching. --force-with-lease cannot protect
+            # anything if a fetch runs first: fetching sets the remote-tracking ref to
+            # whatever GitHub currently has, so the lease always matches and the push always
+            # wins. That is not hypothetical - it silently reset commits pushed directly to
+            # a sibling repo's mirror.
+            REMOTE_SHA=$(git ls-remote github refs/heads/master | cut -f1)
+            if [ -n "$REMOTE_SHA" ]; then
+              git fetch github master
+              if ! git merge-base --is-ancestor "$REMOTE_SHA" HEAD; then
+                echo "##vso[task.logissue type=error]github.com/$(githubRepo) is at $REMOTE_SHA, which is not an ancestor of this build. Someone pushed to the mirror directly. Reconcile it - do not overwrite."
+                exit 1
+              fi
+            else
+              echo "The mirror has no master branch yet - this push will create it and make it the default."
+            fi
+
+            echo "Mirroring master to github.com/$(githubRepo)"
+            if ! git push github HEAD:refs/heads/master; then
+              echo "##vso[task.logissue type=error]Mirror push failed. The usual cause for a NEW mirror is repository scope, not the branch: GITHUB-SDK-MIRROR-TOKEN was minted for the SDK repos, so if it is a fine-grained PAT it must have $(githubRepo) added to its repository list with contents:write. Check that before anything else."
+              exit 1
+            fi
+
+            # Verify rather than trust. A push that reported success but left the mirror on
+            # an older commit is the failure nobody looks at again, because the build is
+            # green.
+            PUSHED=$(git ls-remote github refs/heads/master | cut -f1)
+            LOCAL=$(git rev-parse HEAD)
+            if [ "$PUSHED" != "$LOCAL" ]; then
+              echo "##vso[task.logissue type=error]The mirror is at $PUSHED but this build is $LOCAL. The push reported success and did not land."
+              exit 1
+            fi
+            echo "Mirror complete - github.com/$(githubRepo) is at $LOCAL"
+          displayName: 'Mirror source to GitHub'
