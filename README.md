@@ -20,6 +20,7 @@ RobloxSDKDemo.rbxl
 | Implementación del SDK genérico (Lua) | https://learn.praxsuite.com/examples/lua/lua-sdk-implementation |
 | Ejemplo actual de Roblox (caso de uso) | https://learn.praxsuite.com/examples/lua/lua-sdk-use-case |
 | Documentación de Praxsuite | https://learn.praxsuite.com |
+| Workspace de prueba | ffd80539-a1e2-4a9e-8b33-f716bf690281 |
 
 ---
 
@@ -99,7 +100,7 @@ El servidor inicializa el SDK una sola vez:
 local Praxsuite = require(game:GetService("ServerScriptService").PraxsuiteSDK)
 
 Praxsuite.Init({
-    workspaceId     = "tu-workspace-uuid",
+    workspaceId     = "tu-workspace-uuid",              -- Para este ejemplo hay que utilizar este worksapce que tiene todas las tablas
     apiKeySecret    = "PraxsuiteKey",                   -- nombre en el Secrets Store de Roblox
     baseUrl         = "https://gateway.praxsuite.com",  -- obligatorio: sin esto el SDK no arranca
     autoFetchSchema = false,                            -- endpoints y tablas se registran a mano
