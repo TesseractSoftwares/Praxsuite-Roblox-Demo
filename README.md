@@ -17,14 +17,10 @@ RobloxSDKDemo.rbxl
 
 | Recurso | Enlace |
 | --- | --- |
-| Implementación del SDK genérico (Lua) | <!-- TODO: URL del repo/paquete del SDK de Lua --> `PENDIENTE` |
-| Guía de implementación del SDK genérico | <!-- TODO: URL del doc "Lua SDK Implementation" --> `PENDIENTE` |
-| Ejemplo actual de Roblox (caso de uso) | <!-- TODO: URL del doc "Praxsuite Integration with Roblox" --> `PENDIENTE` |
-| Documentación de Praxsuite | <!-- TODO: URL de docs --> `PENDIENTE` |
-| Workspace de Praxsuite de la demo | <!-- TODO: URL del workspace --> `PENDIENTE` |
-
-> Los enlaces de arriba son marcadores. Reemplaza `PENDIENTE` por la URL definitiva cuando el SDK
-> y los documentos estén publicados.
+| Implementación del SDK genérico (Lua) | https://learn.praxsuite.com/examples/lua/lua-sdk-implementation |
+| Ejemplo actual de Roblox (caso de uso) | https://learn.praxsuite.com/examples/lua/lua-sdk-use-case |
+| Documentación de Praxsuite | https://learn.praxsuite.com |
+| Workspace de prueba | ffd80539-a1e2-4a9e-8b33-f716bf690281 |
 
 ---
 
@@ -104,9 +100,10 @@ El servidor inicializa el SDK una sola vez:
 local Praxsuite = require(game:GetService("ServerScriptService").PraxsuiteSDK)
 
 Praxsuite.Init({
-    workspaceId     = "<!-- TODO: UUID del workspace -->",
-    apiKeySecret    = "PraxsuiteKey",  -- nombre en el Secrets Store de Roblox
-    autoFetchSchema = false,           -- endpoints y tablas se registran a mano
+    workspaceId     = "tu-workspace-uuid",              -- Para este ejemplo hay que utilizar este worksapce que tiene todas las tablas
+    apiKeySecret    = "PraxsuiteKey",                   -- nombre en el Secrets Store de Roblox
+    baseUrl         = "https://gateway.praxsuite.com",  -- obligatorio: sin esto el SDK no arranca
+    autoFetchSchema = false,                            -- endpoints y tablas se registran a mano
 })
 ```
 
