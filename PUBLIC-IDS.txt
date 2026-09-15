@@ -32,6 +32,25 @@ c145d99d-a9d7-4f97-842c-7e4816d46b82   # Jugar          - writes moves; server-s
 1a8e5f59-df6b-4443-93e3-18c97b2945bb   # Mis Cosmeticos - reads another player's inventory by id.
 014b3d6e-e334-4051-864a-ccbb1a5561d1   # Equipar        - writes to another player's avatar by id.
 
+# ─── ADDED 2026-09-15 with the local-engine build ───────────────────────────────────
+# The place no longer calls Registro, Login or Jugar (login is now Auth.LoginPlayer against
+# the gateway, and each click is resolved by BuscaminasMotor). Those three ids stay listed
+# above: earlier builds already published them, and delisting them here would hide that.
+# What the new build adds is Validar. Checked through the platform on 2026-09-15: Sync,
+# signatureAlgorithm 0, hasSignatureSecret false - unsigned, like the rest.
+#
+# Validar deserves a sharper warning than the others, because it WRITES. Its automation
+# ("Solo si es consistente escribe el cierre de la partida y el leaderboard") is what puts a
+# score on the board, and its only defence is consistency against the row that Nueva Partida
+# opened - an endpoint that is itself unsigned and public. So the whole open-play-close chain
+# is callable without a credential. This is a record of exposure, not an approval.
+2c48caf9-bc50-4993-9fc6-13dd6b693e25   # Validar Resultado - WRITES leaderboard + game close.
+
+# --- table ids (not endpoints) --------------------------------------------------------
+# A table id is not a callable URL: reaching it needs an API key and a role on the other
+# side. Listed because it is visible in the place file, not because it is an open door.
+2785e1d3-4a78-4d1a-a30c-7071c268e718   # Demos Leaderboard - registered via Schema.Register.
+
 # --- documentation placeholders, not real ids -----------------------------------------
 a1b2c3d4-e5f6-7890-abcd-ef1234567890   # example in the SDK's Schema.Register docstring
 f9e8d7c6-b5a4-3210-fedc-ba0987654321   # example in the SDK's Schema.Register docstring
