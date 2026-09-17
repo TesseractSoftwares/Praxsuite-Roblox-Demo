@@ -35,8 +35,19 @@ pool:
   name: tesseract-buildpool
 
 variables:
-  isMaster: $[eq(variables['Build.SourceBranch'], 'refs/heads/master')]
-  githubRepo: 'TesseractSoftwares/Praxsuite-Roblox-Demo'
+  # El token de espejo salia de prax-cicd-kv. Esa suscripcion de Azure ya esta
+  # DESHABILITADA -- el vault responde "The subscription associated with this
+  # vault has been disabled" y tumba el job (build 3462). Ahora el secreto sale
+  # de Secret Manager de GCP, donde los 46 del vault estan replicados desde el
+  # 2026-09-09. El grupo gcp-migration aporta GCP_SA_KEY_B64 para autenticar y
+  # es NATIVO de Azure DevOps: uno respaldado por Key Vault fallaria igual.
+  - group: gcp-migration
+  - name: gcpProject
+    value: 'praxsuite-prod'
+  - name: isMaster
+    value: $[eq(variables['Build.SourceBranch'], 'refs/heads/master')]
+  - name: githubRepo
+    value: 'TesseractSoftwares/Praxsuite-Roblox-Demo'
 
 stages:
 
@@ -94,13 +105,10 @@ stages:
         - checkout: self
           fetchDepth: 0
 
-        - task: AzureKeyVault@2
-          displayName: 'Read GitHub token'
-          inputs:
-            azureSubscription: 'sc-acr-push-core-prod'
-            KeyVaultName: 'prax-cicd-kv'
-            SecretsFilter: 'GITHUB-SDK-MIRROR-TOKEN'
-            RunAsPreJob: false
+        - template: .azure/templates/gcp-secrets.yml
+          parameters:
+            secretos:
+              GITHUB-SDK-MIRROR-TOKEN: cicd-github-sdk-mirror-token
 
         - script: |
             set -e
