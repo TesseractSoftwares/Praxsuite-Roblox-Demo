@@ -20,6 +20,7 @@ RobloxSDKDemo.rbxl
 
 | Recurso | Enlace |
 | --- | --- |
+| SDK de Lua (repositorio) | https://github.com/TesseractSoftwares/Praxsuite-SDK-Lua |
 | Implementación del SDK genérico (Lua) | https://learn.praxsuite.com/examples/lua/lua-sdk-implementation |
 | Ejemplo actual de Roblox (caso de uso) | https://learn.praxsuite.com/examples/lua/lua-sdk-use-case |
 | Documentación de Praxsuite | https://learn.praxsuite.com |
